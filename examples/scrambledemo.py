@@ -12,3 +12,6 @@ print ""
 
 for x in range(len(scrambledTexts)):
     print scrambledTexts[x]
+
+
+print get_scramble_types(30)

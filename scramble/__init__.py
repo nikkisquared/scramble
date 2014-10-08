@@ -11,42 +11,44 @@ def get_scramble_types(glitchAmt):
     scrambles = []
 
     # actors that can be manipulated
-    actor = ( ("letter", 0), ("word", 100) )
+    actors = ( ("letter", 0), ("word", 100) )
 
-    # different sources for the actor to swap things around from
+    # different sources for the actorsto swap things around from
 
-    # random * sources mean a specific set of ascii characters
+    # sources ending in a "!" are exclusively for letter actors
+    # sources ending in a "?" are exclusively for word actors
+    # "ascii" sources mean a specific range of ascii characters
     # "self original" refers to original text, "self scrambled" refers to the already scrambled text
-    # "list" refers to a custom made letterList
+    # "list" refers to a custom made letterList or wordList
     # "delete" means outright delete the current character (!)
     # "space!" means replace the current letter with a space
-    # "add to strings?" means put a random word into the list of strings
-    # "replace in strings?" means replace a word in the list of strings (!)
-    source = ( ("random extended!", 100), ("random normal!", 75), ("random numbers!", 50), 
-                ("random letters!", 30), ("self original", 20), ("self scrambled", 80),
-                ("list", 60), ("delete!", 120), ("space!", 40), ("add strings?", 150),
-                ("replace strings?", 75) )
+    # "add bucket?" means put a random word into the list of strings
+    # "replace bucket?" means replace a word in the list of strings (!)
+    sources = ( ("ascii extended!", 100), ("ascii normal!", 75), ("ascii numbers!", 50), 
+                ("ascii letters!", 30), ("self original", 20), ("self scrambled", 80),
+                ("list", 60), ("delete!", 120), ("space!", 40), ("bucket add?", 150),
+                ("bucket replace?", 75) )
 
 
     # creates a crossover list of actors and sources 
-    for x in actor:
+    for actor in actors:
 
-        for y in source:
+        for source in sources:
 
             # combines the actor name with the source name
-            name = x[0] + " " + y[0]
+            name = actor[0] + " " + source[0]
             # the combined cost
-            cost = x[1] + y[1]
-
-            # lets more destructive glitches become more likely
-            if cost < 100 and cost < glitchAmt / 2: continue
+            cost = actor[1] + source[1]
 
             # randomly increases cost- may be it will not be allowed!
             cost += random.randint(0, int(glitchAmt / 5))
 
+            # lets more destructive glitches become more likely
+            if cost < 100 and cost < glitchAmt / 2: continue
+
             # no combinations that start with 'letter' and end in an ? are allowed
             # + no combinations that start with 'word' and end in an ! are allowed
-            if (x[0] == "letter" and y[0][-1] != "?") or (x[0] == "word" and y[0][-1] != "!"):
+            if (actor[0] == "letter" and source[0][-1] != "?") or (actor[0] == "word" and source[0][-1] != "!"):
 
                 # reduces the cost significantly for otherwise too-expensive ones
                 if cost > 120: cost = int(cost * .80)
@@ -183,13 +185,10 @@ def scramble_text(glitchAmt, text, debug=False):
 
         # grabs the current letter
         letter = strings[currWord][currLetter]
-
         # the next string to be added to the scrambled text
         nextInsert = letter
-
         # makes it more likely for a glitch to occur
         nextGlitch -= 1
-
         # forces glitchHit to false, even if one was hit
         glitchHit = False
 
@@ -241,7 +240,7 @@ def scramble_text(glitchAmt, text, debug=False):
                 nextInsert = " "
 
             # add/replace words in strings
-            elif glitchHit[-1] == "strings?":
+            elif glitchHit[1] == "bucket":
 
                 # word to add to strings
                 word = ""
@@ -264,11 +263,11 @@ def scramble_text(glitchAmt, text, debug=False):
                 # puts the word in the middle, somewhere, of strings
                 else: 
                     # adds the new word after an existing one
-                    if glitchHit[1] == "add" and wordsAdded < newWordsCap:
+                    if glitchHit[2] == "add?" and wordsAdded < newWordsCap:
                         strings = strings[:insertPoint] + [word] + strings[insertPoint:]
                         wordsAdded += 1
                     # replaces an existing word
-                    elif glitchHit[1] == "replace":
+                    elif glitchHit[2] == "replace?":
                         strings = strings[:insertPoint] + [word] + strings[insertPoint + 1:]
 
 
@@ -306,7 +305,7 @@ def scramble_text(glitchAmt, text, debug=False):
 
 
             # choose a random character from a set
-            elif glitchHit[1] == "random":
+            elif glitchHit[1] == "ascii":
 
                 if glitchHit[2] == "letters!":
                     roll = random.randint(1, 101)
