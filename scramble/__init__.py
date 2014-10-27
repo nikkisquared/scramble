@@ -81,11 +81,10 @@ def to_text_list(text, textType=None):
     return textList
 
 
-def scramble_text(glitchAmt, text, debug=False):
+def scramble_text(glitchAmt, text, DEBUG=False):
     """scrambles a string based on the glitch amount"""
 
     textType = type(text)
-
     # there is a rare chance of the entire text being replaced by blank strings
     if glitchAmt >= 180 and random.randint(0, 50) == 0:
         # return blank strings
@@ -99,18 +98,16 @@ def scramble_text(glitchAmt, text, debug=False):
         else:
             text = ""
         return text
-    
-    textList = to_text_list(text, textType)
 
     # a copy of the original text, as a flattened string
-    origText = ""
-    # list of strings to run glitches on
-    strings = []
+    origTextAsString = ""
+    # the original text split into individual words, to run glitches on
+    origWords = []
 
-    for chunk in textList:
-        origText += chunk
+    for chunk in to_text_list(text, textType):
+        origTextAsString += chunk
         for word in chunk.split(" "):
-            strings.append(word)
+            origWords.append(word)
 
     # a custom made list of ASCII characters
     letterList = "QwR$(8)_ -GXMo0!~|Psz"
@@ -131,18 +128,17 @@ def scramble_text(glitchAmt, text, debug=False):
                 "randomly", "glitched", "and destroy", "ed.", "in file",
                 "game.py on line %s" % random.randint(403, 940), 
                 "but no encoding declared;", "SyntaxError: Non-ASCII",]
-
-    # adds some randomly generated words to the wordList
-    for amount in range(2, 10):
+    # randomly generates some extended ASCII words and adds them to wordList
+    for i in range(2, 10):
         word = ""
-        for y in range(0, int(amount/2) + 1):
+        for j in range(0, int(i/2) + 1):
             word += chr(random.randint(128, 255))
         wordList.append(word)
 
     scrambleTypes = get_scramble_types(glitchAmt)
 
-    # the rate at which glitches become more likely to occur
-    rate = glitchAmt * 0.025
+    # the amount a glitch's chance increases by every step
+    chanceChangeAmt = glitchAmt * 0.025
 
     # finds the minimum and maximum ranges for glitches occuring on letters
     if glitchAmt <= 900:
@@ -156,17 +152,17 @@ def scramble_text(glitchAmt, text, debug=False):
     nextGlitch = 0
     # whether or not a glitch has been hit
     glitchHit = False
-    # current word from strings to glitch
-    currWord = 0
+    # current word from origWords to glitch
+    wordIndex = 0
     # the current letter of the current word
-    currLetter = 0
+    letterIndex = 0
 
     # output of scrambling the inputted text
     scrambledText = [""]
 
     # an easy reference for valid sources to pull words from
-    wordSources = (strings, wordList, scrambledText)
-    # how many words have been added to strings
+    wordSources = (origWords, wordList, scrambledText)
+    # how many words have been added to origWords
     wordsAdded = 0
     # how many words can be added in total
     maxWordsAdded = 3
@@ -174,10 +170,10 @@ def scramble_text(glitchAmt, text, debug=False):
     # DEBUG ONLY! running total of glitches hit
     glitches = 0
 
-    while currWord < len(strings):
+    while wordIndex < len(origWords):
 
         # grabs the current letter
-        letter = strings[currWord][currLetter]
+        letter = origWords[wordIndex] letterIndex]
         # the next string to be added to the scrambled text
         nextInsert = letter
         # makes it more likely for a glitch to occur
@@ -189,11 +185,11 @@ def scramble_text(glitchAmt, text, debug=False):
             if not glitchHit:
 
                 # reduces the current chance of the glitch occuring
-                s[2] -= rate
+                s[2] -= chanceChangeAmt
 
                 if s[2] > 0:
                     # random roll to try to force the glitch on early letters
-                    if currLetter < 4 and random.randint(0, int(s[2])) == 0:
+                    if letterIndex < 4 and random.randint(0, int(s[2])) == 0:
                         s[2] = 0
                     # uses a different formula after the first few letters
                     else:
@@ -224,10 +220,10 @@ def scramble_text(glitchAmt, text, debug=False):
             # replace the current character with a space
             elif glitchHit[1] == "space!":
                 nextInsert = " "
-            # add/replace words in strings
+            # add/replace words in origWords
             elif glitchHit[1] == "bucket":
 
-                # word to add to strings
+                # word to add to origWords
                 word = ""
 
                 # keeps trying to get a word until a valid one is pulled
@@ -238,22 +234,22 @@ def scramble_text(glitchAmt, text, debug=False):
                     word = wordSource[random.randint(0, len(wordSource) - 1)]
 
                 # where to insert the word 
-                insertPoint = random.randint(currWord + 1, len(strings))
+                insertPoint = random.randint(wordIndex + 1, len(origWords))
 
-                # adds the word to the end of strings
-                if insertPoint == len(strings) and wordsAdded < newWordsCap:
-                    strings.append(word)
+                # adds the word to the end of origWords
+                if insertPoint == len(origWords) and wordsAdded < newWordsCap:
+                    origWords.append(word)
                     wordsAdded += 1
 
-                # puts the word in the middle, somewhere, of strings
+                # puts the word in the middle, somewhere, of origWords
                 else: 
                     # adds the new word after an existing one
                     if glitchHit[2] == "add?" and wordsAdded < newWordsCap:
-                        strings = strings[:insertPoint] + [word] + strings[insertPoint:]
+                        origWords = origWords[:insertPoint] + [word] + origWords[insertPoint:]
                         wordsAdded += 1
                     # replaces an existing word
                     elif glitchHit[2] == "replace?":
-                        strings = strings[:insertPoint] + [word] + strings[insertPoint + 1:]
+                        origWords = origWords[:insertPoint] + [word] + origWords[insertPoint + 1:]
 
 
             # choose a letter from the base text
@@ -269,8 +265,8 @@ def scramble_text(glitchAmt, text, debug=False):
 
                 elif glitchHit[2] == "original":
 
-                    if glitchHit[0] == "letter": source = origText
-                    elif glitchHit[0] == "word": source = strings
+                    if glitchHit[0] == "letter": source = origTextAsString
+                    elif glitchHit[0] == "word": source = origWords
 
                 # choose a possibly-scrambled letter
                 elif glitchHit[2] == "scrambled!":
@@ -318,29 +314,29 @@ def scramble_text(glitchAmt, text, debug=False):
         # adds the new letter to the most recent word
         scrambledText[-1] += nextInsert
 
-        # updates currLetter
-        currLetter += 1
+        # updates letterIndex
+        letterIndex += 1
 
-        # bumps up currLetter, so the total length of text isn't too huge
+        # bumps up letterIndex, so the total length of text isn't too huge
         if glitchHit and glitchHit[0] == "word":
-            currLetter += (len(nextInsert))
+            letterIndex += (len(nextInsert))
 
-        # resets currLetter and updates currWord if needed
-        if currLetter >= len(strings[currWord]):
+        # resets letterIndex and updates wordIndex if needed
+        if letterIndex >= len(origWords[wordIndex]):
 
-            currLetter = 0
-            currWord += 1
+            letterIndex = 0
+            wordIndex += 1
 
-            # keeps increasing the currWord if a string is empty
-            while currWord < len(strings) and len(strings[currWord]) == 0:
-                currWord += 1
+            # keeps increasing the wordIndex if a string is empty
+            while wordIndex < len(origWords) and len(origWords[wordIndex]) == 0:
+                wordIndex += 1
 
-            # adds the start of a new word to the scrambled strings
+            # adds the start of a new word to the scrambled origWords
             scrambledText.append("")
 
     toReturn = None
 
-    # compiles the scrambled text back into a string
+    # the next block compiles the scrambled origWords back into their original format
     if textType == str:
         toReturn = ""
         for x in range(len(scrambledText)):
@@ -355,7 +351,7 @@ def scramble_text(glitchAmt, text, debug=False):
             toReturn[keys[x]] = scrambledText[x]
 
 
-    if debug:
+    if DEBUG:
 
         chars = 0
         for x in range(len(scrambledText)):
