@@ -3,4 +3,5 @@ dist
 build
 *.pyc
 notes.txt
-
+scrambleproject.sublime-project
+scrambleproject.sublime-workspace

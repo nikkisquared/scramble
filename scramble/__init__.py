@@ -85,11 +85,10 @@ def scramble_text(glitchAmt, text, debug=False):
     """scrambles a string based on the glitch amount"""
 
     textType = type(text)
-    textList = to_text_list(text, textType)
 
     # there is a rare chance of the entire text being replaced by blank strings
     if glitchAmt >= 180 and random.randint(0, 50) == 0:
-        #return blank strings
+        # return blank strings
         if textType == tuple:
             text = ("",) * len(text)
         elif textType == list:
@@ -100,86 +99,80 @@ def scramble_text(glitchAmt, text, debug=False):
         else:
             text = ""
         return text
+    
+    textList = to_text_list(text, textType)
 
-    # a copy of the original text
+    # a copy of the original text, as a flattened string
     origText = ""
     # list of strings to run glitches on
     strings = []
 
-    for t in textList:
-        origText += t
-        for s in t.split(" "):
-            strings.append(s)
+    for chunk in textList:
+        origText += chunk
+        for word in chunk.split(" "):
+            strings.append(word)
 
-    # a custom made list of ascii characters
-    letterList = "\\MRBAbOo*queEr<3)butTs_in{=]U^grilL$"
-    # easier reference for non-standard characters
-    chrs = (146, 153, 164, 168, 178, 186, 216, 236)
-    # converts above into characters
-    for x in chrs: letterList += chr(x)
+    # a custom made list of ASCII characters
+    letterList = "QwR$(8)_ -GXMo0!~|Psz"
+    # ASCII codes for non-standard characters
+    extendedCharCodes = (146, 153, 164, 168, 178, 186, 216, 236)
+    for charCode in extendedCharCodes:
+        letterList += chr(charCode)
 
     # a custom made list of words to randomly insert
-    wordList = ["Mr", "Babbo", "babbon", "BABOON", "MN", "NO", "cow", "level",
-                "explo", "lODe", "bbAb", "mrba", "boon", "destructive", "inside",
-                "ouTsi", "side", "StEP", "hi  ", "blat", "thEE", "ieef", "burg",
-                "diNGgo", "ding", "dingette", ",,,", "IT", "you", "mIss", "RGb",
-                "scoRRe", "wordList" "dog", "pet", "__-__", "(8)", "==+==", "YOU",
+    wordList = ["Baboon", "MNO", "cows", "explo", "lode", "boon", "destructive",
+                "side", "STEP", "hi  ", "blat", "thEE", "burg", "diNGgo", "ding",
+                "dingette", ",,,", "IT", "you", "YOU", "miss", "RGB", "SCORE",
+                "dog", "pet", "__-__", "(8)", "==+==", "this", "scrambleTypes",
                 "+%s" % random.randint(1, 100), "-%s" % random.randint(1, 100),
-                "this", "hu", "rts", "minRange", "glitchAmt", "scrambleTypes",
-                "IndexError: string", "index out of range", "SyntaxError: Non-ASCII",
-                "character '\xe2'", "This is a ", "demonstration", "string", "that",
-                "shall be", "randomly", "glitched", "and destroy", "ed.", "ENDLINE",
-                "in file", "game.py on line %s" % random.randint(403, 940), 
-                "but no encoding declared;"]
+                "minRange", "glitchAmt", "wordList", "character '\xe2'",
+                "ENDLINE","IndexError: string", "index out of range",
+                "This is a ", "demonstration", "string", "that", "shall be",
+                "randomly", "glitched", "and destroy", "ed.", "in file",
+                "game.py on line %s" % random.randint(403, 940), 
+                "but no encoding declared;", "SyntaxError: Non-ASCII",]
 
-    # adds some random ascii words to wordList
-    for x in range(2, 10):
-
+    # adds some randomly generated words to the wordList
+    for amount in range(2, 10):
         word = ""
-        for y in range(0, int(x/2) + 1):
+        for y in range(0, int(amount/2) + 1):
             word += chr(random.randint(128, 255))
         wordList.append(word)
 
     scrambleTypes = get_scramble_types(glitchAmt)
 
-    # rate slowly increases
+    # the rate at which glitches become more likely to occur
     rate = glitchAmt * 0.025
 
-    # calculates the total difference in 
-    minRange = 14 - (glitchAmt / 12)
-    maxRange = 17 - int(glitchAmt / 22)
-
-    # negative values might cause an error
-    if minRange < 0: minRange = 0
-    # max range should be kept to a minimum!
-    if maxRange < 0: maxRange = 3
-
-    # give up on the range deal... glitch EVERYTHING
-    if glitchAmt > 900:
+    # finds the minimum and maximum ranges for glitches occuring on letters
+    if glitchAmt <= 900:
+        minRange = max(14 - (glitchAmt / 12), 0)
+        maxRange = max(17 - int(glitchAmt / 22), 0)
+    # give up on the ranges at this point
+    else:
         minRange = maxRange = 0
-
-    # DEBUG! running total of glitches hit
-    glitches = 0
-    # array of scrambled strings
-    scrambledText = [""]
 
     # starts off at 0, so there is a chance of characters below minRange being hit
     nextGlitch = 0
     # whether or not a glitch has been hit
     glitchHit = False
-
     # current word from strings to glitch
     currWord = 0
     # the current letter of the current word
     currLetter = 0
 
+    # output of scrambling the inputted text
+    scrambledText = [""]
+
     # an easy reference for valid sources to pull words from
     wordSources = (strings, wordList, scrambledText)
-
     # how many words have been added to strings
     wordsAdded = 0
     # how many words can be added in total
-    newWordsCap = 3
+    maxWordsAdded = 3
+
+    # DEBUG ONLY! running total of glitches hit
+    glitches = 0
 
     while currWord < len(strings):
 
