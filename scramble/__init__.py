@@ -103,6 +103,10 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     origTextAsString = ""
     # the original text split into individual words, to run glitches on
     origWords = []
+    # how many words have been added to origWords
+    wordsAdded = 0
+    # how many words can be added in total
+    maxWordsAdded = 3
 
     for chunk in to_text_list(text, textType):
         origTextAsString += chunk
@@ -135,8 +139,6 @@ def scramble_text(glitchAmt, text, DEBUG=False):
             word += chr(random.randint(128, 255))
         wordList.append(word)
 
-    scrambleTypes = get_scramble_types(glitchAmt)
-
     # the amount a glitch's chance increases by every step
     chanceChangeAmt = glitchAmt * 0.025
 
@@ -157,15 +159,13 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     # the current letter of the current word
     letterIndex = 0
 
+    # dict of glitches that can occur
+    scrambleTypes = get_scramble_types(glitchAmt)
     # output of scrambling the inputted text
     scrambledText = [""]
 
     # an easy reference for valid sources to pull words from
     wordSources = (origWords, wordList, scrambledText)
-    # how many words have been added to origWords
-    wordsAdded = 0
-    # how many words can be added in total
-    maxWordsAdded = 3
 
     # DEBUG ONLY! running total of glitches hit
     glitches = 0
@@ -173,7 +173,7 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     while wordIndex < len(origWords):
 
         # grabs the current letter
-        letter = origWords[wordIndex] letterIndex]
+        letter = origWords[wordIndex][letterIndex]
         # the next string to be added to the scrambled text
         nextInsert = letter
         # makes it more likely for a glitch to occur
@@ -237,14 +237,14 @@ def scramble_text(glitchAmt, text, DEBUG=False):
                 insertPoint = random.randint(wordIndex + 1, len(origWords))
 
                 # adds the word to the end of origWords
-                if insertPoint == len(origWords) and wordsAdded < newWordsCap:
+                if insertPoint == len(origWords) and wordsAdded < maxWordsAdded:
                     origWords.append(word)
                     wordsAdded += 1
 
                 # puts the word in the middle, somewhere, of origWords
                 else: 
                     # adds the new word after an existing one
-                    if glitchHit[2] == "add?" and wordsAdded < newWordsCap:
+                    if glitchHit[2] == "add?" and wordsAdded < maxWordsAdded:
                         origWords = origWords[:insertPoint] + [word] + origWords[insertPoint:]
                         wordsAdded += 1
                     # replaces an existing word
@@ -316,7 +316,6 @@ def scramble_text(glitchAmt, text, DEBUG=False):
 
         # updates letterIndex
         letterIndex += 1
-
         # bumps up letterIndex, so the total length of text isn't too huge
         if glitchHit and glitchHit[0] == "word":
             letterIndex += (len(nextInsert))
@@ -326,40 +325,37 @@ def scramble_text(glitchAmt, text, DEBUG=False):
 
             letterIndex = 0
             wordIndex += 1
-
             # keeps increasing the wordIndex if a string is empty
             while wordIndex < len(origWords) and len(origWords[wordIndex]) == 0:
                 wordIndex += 1
-
             # adds the start of a new word to the scrambled origWords
             scrambledText.append("")
 
-    toReturn = None
+    # takes off the empty string at the end of the list
+    scrambledText = scrambledText[:-1]
 
-    # the next block compiles the scrambled origWords back into their original format
+    # the next block compiles the scrambled text back into its original format
+    toReturn = None
     if textType == str:
-        toReturn = ""
-        for x in range(len(scrambledText)):
-            toReturn += scrambledText[x] + " "
+        toReturn = scrambledText[0]
+        for word in range(1, len(scrambledText)):
+            toReturn += " " + scrambledText[word]
     elif textType == tuple:
         toReturn = tuple(scrambledText)
     elif textType == list:
         toReturn = scrambledText
     elif textType == dict:
         toReturn = {}
-        for x in range(len(scrambledText)):
-            toReturn[keys[x]] = scrambledText[x]
-
+        keys = text.keys()
+        for word in range(len(scrambledText)):
+            toReturn[keys[word]] = scrambledText[word]
 
     if DEBUG:
-
         chars = 0
         for x in range(len(scrambledText)):
             chars += len(scrambledText[x]) + 1
-
         print "glitch amt: %s, range: %s-%s, rate: %s, glitched: %s/%s - %s%%, scramble types: %s, words: %s" % \
-                (glitchAmt, minRange, maxRange, rate, glitches, chars, 
-                int( ( (glitches * 1.0) / chars ) * 100), len(scrambleTypes), len(scrambledText) )
-
+                (glitchAmt, minRange, maxRange, rate, glitches, chars, int( ( (glitches * 1.0) / chars ) * 100), 
+                    len(scrambleTypes), len(scrambledText) )
 
     return toReturn
