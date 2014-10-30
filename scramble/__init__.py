@@ -7,8 +7,6 @@ import random
 def get_scramble_types(glitchAmt):
     """generates and returns a list of usable scrambling types"""
 
-    scrambles = []
-
     # actors that can be manipulated
     actors = ( ("letter", 0), ("word", 100) )
 
@@ -25,8 +23,10 @@ def get_scramble_types(glitchAmt):
     # "replace bucket?" means replace a word in the list of strings (!)
     sources = ( ("ascii extended!", 100), ("ascii normal!", 75), ("ascii numbers!", 50), 
                 ("ascii letters!", 30), ("self original", 20), ("self scrambled", 80),
-                ("list", 60), ("delete!", 120), ("space!", 40), ("bucket add?", 150),
-                ("bucket replace?", 75) )
+                ("list", 75), ("delete!", 110), ("space!", 40), ("bucket add?", 50),
+                ("bucket replace?", 25) )
+
+    scrambleTypes = []
 
     # creates a crossover list of actors and sources 
     for actor in actors:
@@ -38,8 +38,9 @@ def get_scramble_types(glitchAmt):
             # the combined cost
             cost = actor[1] + source[1]
 
-            # randomly increases cost- may be it will not be allowed!
-            cost += random.randint(0, int(glitchAmt / 5))
+            # randomly increases cost, so that there is a slight variance in glitches used
+            if glitchAmt > 50:
+                cost += random.randint(0, int(glitchAmt / 5))
 
             # lets more destructive glitches become more likely
             if cost < 100 and cost < glitchAmt / 2: continue
@@ -53,9 +54,12 @@ def get_scramble_types(glitchAmt):
 
                 if cost <= glitchAmt:
                     # name, baseChance, currChance
-                    scrambles.append([name, cost, cost])
+                    scrambleTypes.append([name, cost, cost])
 
-    return scrambles
+    # puts the most costly scrambles in the front of the list
+    #scrambleTypes.sort(key = lambda s: s[1], reverse = True)
+
+    return scrambleTypes
 
 
 def to_text_list(text, textType=None):
@@ -80,17 +84,18 @@ def to_text_list(text, textType=None):
     return textList
 
 
-def fuck_with_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex):
-    """fucks with scramble types"""
+def iterate_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex):
+    """goes through every type of glitch available and attempts to randomly pick one and return it"""
 
-    glitchHit = None
+    glitchHit = []
 
     for sType in scrambleTypes:
         if not glitchHit:
 
-            # reduces the current chance of the glitch occuring
+            # increases the chance of the glitch occuring
             sType[2] -= chanceChangeAmt
 
+            # if the scramble has not been guaranteed to occur
             if sType[2] > 0:
                 # random roll to try to force the glitch on early letters
                 if letterIndex < 4 and random.randint(0, int(sType[2])) == 0:
@@ -102,6 +107,7 @@ def fuck_with_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex):
                     if roll < sType[1] and roll >= sType[2]:
                         sType[2] = 0
 
+            # if the currChance is <= 0, save the current scramble
             if sType[2] <= 0:
                 # sets currChance back to the baseChance
                 sType[2] = sType[1]
@@ -112,7 +118,7 @@ def fuck_with_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex):
 
 
 def scramble_text(glitchAmt, text, DEBUG=False):
-    """scrambles a string based on the glitch amount"""
+    """scrambles the text based on the glitchiness amount"""
 
     textType = type(text)
     # there is a rare chance of the entire text being replaced by blank strings
@@ -146,7 +152,7 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     # a custom made list of ASCII characters
     letterList = "QwR$(8)_ -GXMo0!~|Psz"
     # ASCII codes for non-standard characters
-    extendedCharCodes = (146, 153, 164, 168, 178, 186, 216, 236)
+    extendedCharCodes = (146, 153, 164, 168, 178, 186, 216, 222, 236)
     for charCode in extendedCharCodes:
         letterList += chr(charCode)
 
@@ -184,8 +190,8 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     # if it is below 0, it is treated the same as it being equal to 0
     # starts off at 0, so there is a chance of characters below minRange being hit
     stepsUntilGlitch = 0
-    # whether or not a glitch has been hit
-    glitchHit = False
+    # critical information for the last glitch to stored, if one has been 
+    glitchHit = []
     # current word from origWords to glitch
     wordIndex = 0
     # the current letter of the current word
@@ -209,12 +215,16 @@ def scramble_text(glitchAmt, text, DEBUG=False):
         # the next string to be added to the scrambled text
         # by default it is the original letter, but may be replaced by a glitch
         nextInsert = letter
+        # erases the glitch found last time no matter what, to give less likely glitches a better chance
+        glitchHit = []
         stepsUntilGlitch -= 1
 
+        # if no glitch is loaded, try to grab one right now
         if not glitchHit:
-            glitchHit = fuck_with_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex)
-        if glitchHit:
-            stepsUntilGlitch -= random.randint(0, 2) % 2
+            glitchHit = iterate_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex)
+            # if a glitch became ready, it will try to cause it now
+            if glitchHit:
+                stepsUntilGlitch -= 2
 
         if glitchHit and stepsUntilGlitch <= 0:
 
