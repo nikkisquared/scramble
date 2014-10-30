@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-"""library for scrambling text"""
+"""a library for scrambling text"""
 
 import random
 
@@ -12,7 +12,7 @@ def get_scramble_types(glitchAmt):
     # actors that can be manipulated
     actors = ( ("letter", 0), ("word", 100) )
 
-    # different sources for the actorsto swap things around from
+    # different sources for the actors to swap things around from
 
     # sources ending in a "!" are exclusively for letter actors
     # sources ending in a "?" are exclusively for word actors
