@@ -28,7 +28,6 @@ def get_scramble_types(glitchAmt):
                 ("list", 60), ("delete!", 120), ("space!", 40), ("bucket add?", 150),
                 ("bucket replace?", 75) )
 
-
     # creates a crossover list of actors and sources 
     for actor in actors:
 
@@ -53,7 +52,7 @@ def get_scramble_types(glitchAmt):
                 if cost > 120: cost = int(cost * .80)
 
                 if cost <= glitchAmt:
-                    # name, base chance, current chance
+                    # name, baseChance, currChance
                     scrambles.append([name, cost, cost])
 
     return scrambles
@@ -79,6 +78,37 @@ def to_text_list(text, textType=None):
         textList = [" "]
 
     return textList
+
+
+def fuck_with_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex):
+    """fucks with scramble types"""
+
+    glitchHit = None
+
+    for sType in scrambleTypes:
+        if not glitchHit:
+
+            # reduces the current chance of the glitch occuring
+            sType[2] -= chanceChangeAmt
+
+            if sType[2] > 0:
+                # random roll to try to force the glitch on early letters
+                if letterIndex < 4 and random.randint(0, int(sType[2])) == 0:
+                    sType[2] = 0
+                # uses a different formula after the first few letters
+                else:
+                    roll = random.randint(0, sType[1] * 5)
+                    # requires the roll to end up between currChance and baseChance
+                    if roll < sType[1] and roll >= sType[2]:
+                        sType[2] = 0
+
+            if sType[2] <= 0:
+                # sets currChance back to the baseChance
+                sType[2] = sType[1]
+                # splits up the name of the glitch
+                glitchHit = sType[0].split(' ')
+
+    return glitchHit
 
 
 def scramble_text(glitchAmt, text, DEBUG=False):
@@ -139,9 +169,6 @@ def scramble_text(glitchAmt, text, DEBUG=False):
             word += chr(random.randint(128, 255))
         wordList.append(word)
 
-    # the amount a glitch's chance increases by every step
-    chanceChangeAmt = glitchAmt * 0.025
-
     # finds the minimum and maximum ranges for glitches occuring on letters
     if glitchAmt <= 900:
         minRange = max(14 - (glitchAmt / 12), 0)
@@ -150,8 +177,13 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     else:
         minRange = maxRange = 0
 
+    # the amount a glitch's chance increases by every step
+    chanceChangeAmt = glitchAmt * 0.025
+
+    # the number of steps - letters - until a glitch can happen
+    # if it is below 0, it is treated the same as it being equal to 0
     # starts off at 0, so there is a chance of characters below minRange being hit
-    nextGlitch = 0
+    stepsUntilGlitch = 0
     # whether or not a glitch has been hit
     glitchHit = False
     # current word from origWords to glitch
@@ -168,51 +200,28 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     wordSources = (origWords, wordList, scrambledText)
 
     # DEBUG ONLY! running total of glitches hit
-    glitches = 0
+    numGlitches = 0
 
     while wordIndex < len(origWords):
 
         # grabs the current letter
         letter = origWords[wordIndex][letterIndex]
         # the next string to be added to the scrambled text
+        # by default it is the original letter, but may be replaced by a glitch
         nextInsert = letter
-        # makes it more likely for a glitch to occur
-        nextGlitch -= 1
-        # forces glitchHit to false, even if one was hit
-        glitchHit = False
+        stepsUntilGlitch -= 1
 
-        for s in scrambleTypes:
-            if not glitchHit:
+        if not glitchHit:
+            glitchHit = fuck_with_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex)
+        if glitchHit:
+            stepsUntilGlitch -= random.randint(0, 2) % 2
 
-                # reduces the current chance of the glitch occuring
-                s[2] -= chanceChangeAmt
-
-                if s[2] > 0:
-                    # random roll to try to force the glitch on early letters
-                    if letterIndex < 4 and random.randint(0, int(s[2])) == 0:
-                        s[2] = 0
-                    # uses a different formula after the first few letters
-                    else:
-                        roll = random.randint(0, s[1] * 5)
-                        # requires the roll to end up between the current chance
-                        # and the base chance, after a high roll
-                        if roll >= s[2] and roll < s[1]:
-                            s[2] = 0
-
-                if s[2] <= 0:
-                    # sets the current chance back to the base chance
-                    s[2] = s[1]
-                    # saves the names
-                    glitchHit = s[0].split(' ')
-                    nextGlitch -= 1
-
-
-        if glitchHit and nextGlitch <= 0:
+        if glitchHit and stepsUntilGlitch <= 0:
 
             # randomly determines when the next glitch can happen
-            nextGlitch = random.randint(minRange, maxRange)
+            stepsUntilGlitch = random.randint(minRange, maxRange)
             # DEBUG! running total of glitches
-            glitches += 1
+            numGlitches += 1
 
             # delete the current character
             if glitchHit[1] == "delete!":
@@ -354,8 +363,8 @@ def scramble_text(glitchAmt, text, DEBUG=False):
         chars = 0
         for x in range(len(scrambledText)):
             chars += len(scrambledText[x]) + 1
-        print "glitch amt: %s, range: %s-%s, rate: %s, glitched: %s/%s - %s%%, scramble types: %s, words: %s" % \
-                (glitchAmt, minRange, maxRange, rate, glitches, chars, int( ( (glitches * 1.0) / chars ) * 100), 
-                    len(scrambleTypes), len(scrambledText) )
+        print "glitch amt: %s, range: %s-%s, chance change: %s, glitched: %s/%s - %s%%, scramble types: %s, words: %s" % \
+                (glitchAmt, minRange, maxRange, chanceChangeAmt, numGlitches, chars, int( ( (numGlitches * 1.0) / chars ) * 100), 
+                    len(scrambleTypes), len(scrambledText))
 
     return toReturn
