@@ -11,7 +11,7 @@ def get_scramble_types(glitchAmt):
     actors = ( ("letter", 0), ("word", 100) )
 
     # different sources for the actors to swap things around from
-
+    # the first value is the name, and the second is the additive cost
     # sources ending in a "!" are exclusively for letter actors
     # sources ending in a "?" are exclusively for word actors
     # "ascii" sources mean a specific range of ascii characters
@@ -26,11 +26,9 @@ def get_scramble_types(glitchAmt):
                 ("list", 75), ("delete!", 110), ("space!", 40), ("bucket add?", 50),
                 ("bucket replace?", 25) )
 
+    # creates a crossover list of actors and sources
     scrambleTypes = []
-
-    # creates a crossover list of actors and sources 
     for actor in actors:
-
         for source in sources:
 
             # combines the actor name with the source name
@@ -43,7 +41,9 @@ def get_scramble_types(glitchAmt):
                 cost += random.randint(0, int(glitchAmt / 5))
 
             # lets more destructive glitches become more likely
-            if cost < 100 and cost < glitchAmt / 2: continue
+            # by skipping over low-cost glitches after a point
+            if cost < 100 and cost < glitchAmt / 2:
+                continue
 
             # no combinations that start with 'letter' and end in an ? are allowed
             # + no combinations that start with 'word' and end in an ! are allowed
@@ -54,7 +54,7 @@ def get_scramble_types(glitchAmt):
 
                 if cost <= glitchAmt:
                     # name, baseChance, currChance
-                    scrambleTypes.append([name, cost, cost])
+                    scrambleTypes.append([name, cost, cost/2.5])
 
     # puts the most costly scrambles in the front of the list
     #scrambleTypes.sort(key = lambda s: s[1], reverse = True)
@@ -85,7 +85,10 @@ def to_text_list(text, textType=None):
 
 
 def iterate_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex):
-    """goes through every type of glitch available and attempts to randomly pick one and return it"""
+    """
+    goes through every type of glitch available and attempts to randomly return one,
+    based on their weighted probabilities
+    """
 
     glitchHit = []
 
@@ -97,15 +100,10 @@ def iterate_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex):
 
             # if the scramble has not been guaranteed to occur
             if sType[2] > 0:
-                # random roll to try to force the glitch on early letters
-                if letterIndex < 4 and random.randint(0, int(sType[2])) == 0:
+                roll = random.randint(0, sType[1] * 5)
+                # requires the roll to end up between currChance and baseChance
+                if roll < sType[1] and roll >= sType[2]:
                     sType[2] = 0
-                # uses a different formula after the first few letters
-                else:
-                    roll = random.randint(0, sType[1] * 5)
-                    # requires the roll to end up between currChance and baseChance
-                    if roll < sType[1] and roll >= sType[2]:
-                        sType[2] = 0
 
             # if the currChance is <= 0, save the current scramble
             if sType[2] <= 0:
@@ -205,7 +203,7 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     # an easy reference for valid sources to pull words from
     wordSources = (origWords, wordList, scrambledText)
 
-    # DEBUG ONLY! running total of glitches hit
+    # running total of glitches applied to the text
     numGlitches = 0
 
     while wordIndex < len(origWords):
@@ -215,22 +213,18 @@ def scramble_text(glitchAmt, text, DEBUG=False):
         # the next string to be added to the scrambled text
         # by default it is the original letter, but may be replaced by a glitch
         nextInsert = letter
-        # erases the glitch found last time no matter what, to give less likely glitches a better chance
-        glitchHit = []
         stepsUntilGlitch -= 1
 
-        # if no glitch is loaded, try to grab one right now
-        if not glitchHit:
-            glitchHit = iterate_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex)
-            # if a glitch became ready, it will try to cause it now
-            if glitchHit:
-                stepsUntilGlitch -= 2
+        # try to load a glitch for use, even if one was saved already
+        glitchHit = iterate_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex)
+        # if a glitch became ready, it will try to cause it now
+        if glitchHit:
+            stepsUntilGlitch -= 2
 
         if glitchHit and stepsUntilGlitch <= 0:
 
             # randomly determines when the next glitch can happen
             stepsUntilGlitch = random.randint(minRange, maxRange)
-            # DEBUG! running total of glitches
             numGlitches += 1
 
             # delete the current character
@@ -247,7 +241,6 @@ def scramble_text(glitchAmt, text, DEBUG=False):
 
                 # keeps trying to get a word until a valid one is pulled
                 while len(word) == 0:
-
                     # pulls a random source to take a word from
                     wordSource = wordSources[random.randint(0, len(wordSources) - 1)]
                     word = wordSource[random.randint(0, len(wordSource) - 1)]
@@ -278,18 +271,15 @@ def scramble_text(glitchAmt, text, DEBUG=False):
 
                 # choose from a pre-defined list
                 if glitchHit[1] == "list":
-
                     if glitchHit[0] == "letter": source = letterList
                     elif glitchHit[0] == "word": source = wordList
 
                 elif glitchHit[2] == "original":
-
                     if glitchHit[0] == "letter": source = origTextAsString
                     elif glitchHit[0] == "word": source = origWords
 
                 # choose a possibly-scrambled letter
                 elif glitchHit[2] == "scrambled!":
-
                     if glitchHit[0] == "letter":
                         roll = random.randint(0, len(scrambledText) - 1)
                         source = scrambledText[roll]
@@ -306,29 +296,24 @@ def scramble_text(glitchAmt, text, DEBUG=False):
 
             # choose a random character from a set
             elif glitchHit[1] == "ascii":
-
                 if glitchHit[2] == "letters!":
                     roll = random.randint(1, 101)
-
                     # uppercase letters
                     if roll > 75: rng = (65, 91)
                     # lowercase letters
                     else: rng = (97, 123)
-
-                # just numbers.... clearly
+                # only numbers
                 elif glitchHit[2] == 'numbers!': rng = (48, 57)
-                # standard printing characters
+                # full range of normal printing characters
                 elif glitchHit[2] == 'normal!': rng = (32, 128)
-                # large range of unusual ascii
+                # only extended ascii
                 elif glitchHit[2] == 'extended!': rng = (128, 255)
 
                 nextInsert = chr(random.randint(rng[0], rng[1]))
 
-
-            # inserts the new letter after the current one
+            # 10% chance of the new letter being inserted after the proper one
             if random.randint(0, 99) > 90 and glitchHit[1] != "delete!":
                 nextInsert = letter + nextInsert
-
 
         # adds the new letter to the most recent word
         scrambledText[-1] += nextInsert
@@ -369,6 +354,7 @@ def scramble_text(glitchAmt, text, DEBUG=False):
         for word in range(len(scrambledText)):
             toReturn[keys[word]] = scrambledText[word]
 
+    # DEBUG ONLY output
     if DEBUG:
         chars = 0
         for x in range(len(scrambledText)):
