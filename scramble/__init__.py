@@ -24,7 +24,7 @@ def get_scramble_types(glitchAmt):
     sources = ( ("ascii extended!", 100), ("ascii normal!", 75), ("ascii numbers!", 50), 
                 ("ascii letters!", 30), ("self original", 20), ("self scrambled", 80),
                 ("list", 75), ("delete!", 110), ("space!", 40), ("bucket add?", 50),
-                ("bucket replace?", 25) )
+                ("bucket replace?", 75) )
 
     # creates a crossover list of actors and sources
     scrambleTypes = []
@@ -128,33 +128,23 @@ def get_random_word(wordSources):
     return word
 
 
-def add_to_origWords(origWords, glitchSubType, wordIndex, wordSources):
+def add_to_origWords(origWords, glitchSubType, wordIndex, wordSources, newWord=None):
     """adds to or replaces a word in origWords"""
 
-    newWord = get_random_word(wordSources)
+    if not newWord:
+        newWord = get_random_word(wordSources)
+
     endPoint = len(origWords)
-    # the replace glitch needs to select a valid word to replace,
-    # so it makes sure it won't normally default to the end of the list
+    # the replace glitch cannot select the end of the list
     if glitchSubType == "replace?":
-        # break out of this because there is no worthwhile word to replace
-        if wordIndex + 1 == endPoint:
-            return origWords
         endPoint -= 1
-    # chooses an insert point after the word currently being edited
     insertPoint = random.randint(wordIndex + 1, endPoint)
 
-    #print '%s: "%s" then "%s"' % (glitchSubType, origWords[insertPoint], newWord)
-
-    # adds the word to the end of origWords
     if insertPoint == len(origWords):
         origWords.append(newWord)
-    # puts the word in the middle of origWords
-    else:
-        newWord = newWord
-        # adds the new word onto an existing one
-        if glitchSubType == "add?":
-            # THIS MAKES WORDS TOO LONG WHAT DO I DO
-            newWord = str(origWords[insertPoint]) + " " + newWord
+    elif glitchSubType == "add?":
+        origWords = origWords[:insertPoint] + [newWord] + origWords[insertPoint:]
+    elif glitchSubType == "replace?":
         origWords = origWords[:insertPoint] + [newWord] + origWords[insertPoint + 1:]
 
     return origWords
@@ -202,7 +192,7 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     # how many words have been added to origWords
     wordsAdded = 0
     # how many words can be added in total
-    maxWordsAdded = 3
+    maxWordsAdded = 4
 
     for chunk in to_text_list(text, textType):
         origTextAsString += chunk
@@ -297,17 +287,22 @@ def scramble_text(glitchAmt, text, DEBUG=False):
             # replace the current character with a space
             elif glitchHit[1] == "space!":
                 nextSubstring = " "
+            # choose a random character from the defined set
+            elif glitchHit[1] == "ascii":
+                nextSubstring = random_ASCII_character(glitchHit[2])
 
             # add new words into, or replace existing words in, origWords
             # it won't bother trying to add a new word if the cap has been reached
-            elif glitchHit[1] == "bucket" and not (glitchHit[2] == "add?" and wordsAdded >= maxWordsAdded):
-                origWords = add_to_origWords(origWords, glitchHit[2], wordIndex, wordSources) 
+            # and it won't try to replace a word if it won't come up for glitching
+            elif (glitchHit[1] == "bucket"
+                    and not (glitchHit[2] == "add?" and wordsAdded >= maxWordsAdded)
+                    and not (glitchHit[2] == "replace?" and wordIndex + 1 == len(origWords)) ):
+                origWords = add_to_origWords(origWords, glitchHit[2], wordIndex, wordSources)
                 if glitchHit[2] == "add?":
                     wordsAdded += 1
 
             # choose a letter or word from the base text, or a defined list
             elif glitchHit[1] in ("self", "list"):
-
                 source = []
 
                 # choose from a pre-defined list
@@ -318,25 +313,27 @@ def scramble_text(glitchAmt, text, DEBUG=False):
                 elif glitchHit[2] == "original":
                     if glitchHit[0] == "letter": source = origTextAsString
                     elif glitchHit[0] == "word": source = origWords
-                # choose a possibly-scrambled letter
+                # choose a possibly-scrambled letter/word
                 elif glitchHit[2] == "scrambled!":
                     if glitchHit[0] == "letter":
                         roll = random.randint(0, len(scrambledText) - 1)
                         source = scrambledText[roll]
-                    elif glitchHit[0] == "word": source = scrambledText
+                    elif glitchHit[0] == "word":
+                        source = scrambledText
 
                 # makes sure there is something usable in the source
                 if len(source) > 0:
                     roll = random.randint(0, len(source) - 1)
                     nextSubstring = source[roll]
-                # defaults to the original letter otherwise
-                else: nextSubstring = letter
+                    if glitchHit[0] == "word":
+                        # bumps up letterIndex, so the total length of text isn't too huge
+                        letterIndex += (len(nextSubstring))
+                        wordsAdded += 1
+                # defaults to the original letter if there's nothing in the source
+                else:
+                    nextSubstring = letter
 
-                # choose a random character from a set
-                if glitchHit[1] == "ascii":
-                    nextSubstring = random_ASCII_character(glitchHit[2])
-
-            # 10% chance of the new letter being inserted after the proper one
+            # 10% chance of putting in the original letter before the nextSubstring
             if random.randint(0, 99) > 90 and glitchHit[1] != "delete!":
                 nextSubstring = letter + nextSubstring
 
@@ -344,13 +341,9 @@ def scramble_text(glitchAmt, text, DEBUG=False):
         nextWord += nextSubstring
         # updates letterIndex
         letterIndex += 1
-        # bumps up letterIndex, so the total length of text isn't too huge
-        # if glitchHit and glitchHit[0] == "word":
-        #     letterIndex += (len(nextSubstring))
 
         # resets letterIndex and updates wordIndex if needed
         if letterIndex >= len(origWords[wordIndex]):
-
             scrambledText.append(nextWord)
             nextWord = ""
             letterIndex = 0
