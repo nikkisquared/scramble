@@ -92,28 +92,6 @@ def iterate_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex):
     return glitchHit
 
 
-def to_text_list(text, textType=None):
-    """converts text into a list and returns it"""
-
-    if textType == None:
-        textType = type(text)
-
-    # converts string to a text
-    if textType == str:
-        textList = [text]
-    # points textList to the given list
-    elif textType == list or textType == tuple:
-        textList = text
-    # breaks apart the dict into original text
-    elif textType == dict:
-        textList = text.values()
-    # creates a default for non-valid given items
-    else:
-        textList = [" "]
-
-    return textList
-
-
 def get_random_word(wordSources):
     """gets a valid word from one of the sources given"""
 
@@ -142,10 +120,9 @@ def add_to_origWords(origWords, glitchSubType, wordIndex, wordSources, newWord=N
 
     if insertPoint == len(origWords):
         origWords.append(newWord)
-    elif glitchSubType == "add?":
-        origWords = origWords[:insertPoint] + [newWord] + origWords[insertPoint:]
-    elif glitchSubType == "replace?":
-        origWords = origWords[:insertPoint] + [newWord] + origWords[insertPoint + 1:]
+    else:
+        origWords = origWords[:insertPoint] + [newWord] + \
+            origWords[insertPoint + (glitchSubType == "replace?"):]
 
     return origWords
 
@@ -173,17 +150,18 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     textType = type(text)
     # there is a rare chance of the entire text being replaced by blank strings
     if glitchAmt >= 180 and random.randint(0, 50) == 0:
-        # return blank strings
-        if textType == tuple:
-            text = ("",) * len(text)
-        elif textType == list:
+        if textType == list:
             text = [""] * len(text)
-        elif textType == dict:
-            for key in text:
-                text[key] = ""
         else:
             text = ""
         return text
+
+    # points textList to the given list
+    elif textType == list:
+        textList = text
+    # converts string to a text
+    else:
+        textList = [text]
 
     # a copy of the original text, as a flattened string
     origTextAsString = ""
@@ -194,7 +172,7 @@ def scramble_text(glitchAmt, text, DEBUG=False):
     # how many words can be added in total
     maxWordsAdded = 4
 
-    for chunk in to_text_list(text, textType):
+    for chunk in textList:
         origTextAsString += chunk
         for word in chunk.split(" "):
             origWords.append(word)
@@ -354,19 +332,12 @@ def scramble_text(glitchAmt, text, DEBUG=False):
 
     # the next block compiles the scrambled text back into its original format
     toReturn = None
-    if textType == str:
+    if textType == list:
+        toReturn = scrambledText
+    else:
         toReturn = scrambledText[0]
         for word in range(1, len(scrambledText)):
             toReturn += " " + scrambledText[word]
-    elif textType == tuple:
-        toReturn = tuple(scrambledText)
-    elif textType == list:
-        toReturn = scrambledText
-    elif textType == dict:
-        toReturn = {}
-        keys = text.keys()
-        for word in range(len(scrambledText)):
-            toReturn[keys[word]] = scrambledText[word]
 
     # DEBUG ONLY output
     if DEBUG:

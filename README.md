@@ -28,6 +28,5 @@ TBA
 
 History
 -------
-Originally made in 2013 for an as of yet un-announced project 
-(possible spoiler alerts in the source code!).
-Scramble will likely see more development to suit my needs in the future.
+Originally made in 2013 for an as of yet un-announced project.
+Scramble will see more development in the near future.
