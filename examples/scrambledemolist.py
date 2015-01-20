@@ -1,12 +1,13 @@
-from scramble import *
+import scramble
 
+demoScrambler = scramble.Scrambler()
 scrambledTexts = []
 glitchAmt = 10
 text = "This is a demonstration text string that shall be randomly glitched and destroyed."
 text = text.split()
 
 for x in range(22):
-    scrambledTexts.append( scramble_text(glitchAmt, text) )
+    scrambledTexts.append( demoScrambler.scramble_text(text, glitchAmt) )
     glitchAmt += 10
 
 print ""
