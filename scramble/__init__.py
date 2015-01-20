@@ -9,23 +9,25 @@ class Scrambler(object):
     def __init__(self):
 
         # actors that can be manipulated
-        self.actors = ( ("letter", 0), ("word", 100) )
+        self.actors = {"letter": 0, "word": 100}
 
         # different sources for the actors to swap things around from
         # the first value is the name, and the second is the additive cost
         # sources ending in a "!" are exclusively for letter actors
         # sources ending in a "?" are exclusively for word actors
         # "ascii" sources mean a specific range of ascii characters
-        # "self original" refers to original text, "self scrambled" refers to the already scrambled text
+        # "self original" refers to original text
+        # "self scrambled" refers to the already scrambled text
         # "list" refers to a custom made letterList or wordList
         # "delete!" means outright delete the current letter
         # "space!" means replace the current letter with a space
         # "add bucket?" means put a random word into the list of strings
         # "replace bucket?" means replace a word in the list of strings (!)
-        self.sources = ( ("ascii extended!", 100), ("ascii normal!", 75), ("ascii numbers!", 50), 
-                    ("ascii letters!", 30), ("self original", 20), ("self scrambled", 80),
-                    ("list", 75), ("delete!", 110), ("space!", 40), ("bucket add?", 50),
-                    ("bucket replace?", 75) )
+        self.sources = {
+            "ascii extended!": 100, "ascii normal!": 75, "ascii numbers!": 50,
+            "ascii letters!": 30, "self original": 20, "self scrambled": 80,
+            "list": 75, "delete!": 110, "space!": 40, "bucket add?": 50,
+            "bucket replace?": 75}
 
         # how many words can be added in total
         self.maxWordsAdded = 4
@@ -56,13 +58,13 @@ class Scrambler(object):
 
         # creates a crossover list of actors and sources
         scrambleTypes = []
-        for actor in self.actors:
-            for source in self.sources:
+        for actorName, actorCost in self.actors.items():
+            for sourceName, sourceCost in self.sources.items():
 
                 # combines the actor name with the source name
-                name = actor[0] + " " + source[0]
+                name = actorName + " " + sourceName
                 # the combined cost
-                cost = actor[1] + source[1]
+                cost = actorCost + sourceCost
 
                 # randomly increases cost, so that there is a slight variance in glitches used
                 if glitchAmt > 50:
@@ -72,9 +74,9 @@ class Scrambler(object):
                 if cost < 100 and cost < glitchAmt / 2:
                     continue
 
-                # no combinations that start with 'letter' and end in an ? are allowed
-                # + no combinations that start with 'word' and end in an ! are allowed
-                if (actor[0] == "letter" and source[0][-1] != "?") or (actor[0] == "word" and source[0][-1] != "!"):
+                # letter actors cannot use sources ending in "?"
+                # and similarily word actors cannot use sources ending in "!"
+                if (actorName == "letter" and sourceName[-1] != "?") or (actorName == "word" and sourceName[-1] != "!"):
 
                     # reduces the cost significantly for otherwise too-expensive ones
                     if cost > 120: cost = int(cost * .80)
