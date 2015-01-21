@@ -8,26 +8,51 @@ class Scrambler(object):
 
     def __init__(self):
 
-        # actors that can be manipulated
-        self.actors = {"letter": 0, "word": 100}
+        # the additional costs of each type of actor
+        self.actorCosts = {"letters": 0, "words": 100}
 
         # different sources for the actors to swap things around from
         # the first value is the name, and the second is the additive cost
-        # sources ending in a "!" are exclusively for letter actors
-        # sources ending in a "?" are exclusively for word actors
         # "ascii" sources mean a specific range of ascii characters
         # "self original" refers to original text
         # "self scrambled" refers to the already scrambled text
         # "list" refers to a custom made letterList or wordList
-        # "delete!" means outright delete the current letter
-        # "space!" means replace the current letter with a space
-        # "add bucket?" means put a random word into the list of strings
-        # "replace bucket?" means replace a word in the list of strings (!)
-        self.sources = {
-            "ascii extended!": 100, "ascii normal!": 75, "ascii numbers!": 50,
-            "ascii letters!": 30, "self original": 20, "self scrambled": 80,
-            "list": 75, "delete!": 110, "space!": 40, "bucket add?": 50,
-            "bucket replace?": 75}
+        # "delete" means outright delete the current letter
+        # "space" means replace the current letter with a space
+        # "bucket add" means put a random word into origWords
+        # "bucket replace" means replace a  random word in origWords
+
+        self.sources = [
+            {"name": "ascii", "actors": ["letters"],
+            "modifiers": [
+                {"name": "letters", "cost": 30},
+                {"name": "numbers", "cost": 50},
+                {"name": "normal", "cost": 75},
+                {"name": "extended", "cost": 100}
+            ]},
+            {"name": "self", "actors": ["letters", "words"],
+            "modifiers": [
+                {"name": "original", "cost": 20},
+                {"name": "scrambled", "cost": 80}
+            ]},
+            {"name": "bucket", "actors": ["words"],
+            "modifiers": [
+                {"name": "add", "cost": 50},
+                {"name": "replace", "cost": 75}
+            ]},
+            {"name": "list", "actors": ["letters", "words"],
+            "modifiers": [
+                {"name": "default", "cost": 75}
+            ]},
+            {"name": "space", "actors": ["letters"],
+            "modifiers": [
+                {"name": "default", "cost": 40}
+            ]},
+            {"name": "delete", "actors": ["letters"],
+            "modifiers": [
+                {"name": "default", "cost": 110}
+            ]}
+        ]
 
         # how many words can be added in total
         self.maxWordsAdded = 4
@@ -58,32 +83,29 @@ class Scrambler(object):
 
         # creates a crossover list of actors and sources
         scrambleTypes = []
-        for actorName, actorCost in self.actors.items():
-            for sourceName, sourceCost in self.sources.items():
-
-                # combines the actor name with the source name
-                name = actorName + " " + sourceName
-                # the combined cost
-                cost = actorCost + sourceCost
-
-                # randomly increases cost, so that there is a slight variance in glitches used
-                if glitchAmt > 50:
-                    cost += random.randint(0, int(glitchAmt / 5))
-
-                # more destructive glitches become more likely over time
-                if cost < 100 and cost < glitchAmt / 2:
+        for actorName in self.actorCosts.keys():
+            for source in self.sources:
+                if actorName not in source["actors"]:
                     continue
+                for modifier in source["modifiers"]:
 
-                # letter actors cannot use sources ending in "?"
-                # and similarily word actors cannot use sources ending in "!"
-                if (actorName == "letter" and sourceName[-1] != "?") or (actorName == "word" and sourceName[-1] != "!"):
+                    name = "%s %s %s" % (actorName, source["name"], modifier["name"])
+                    cost = self.actorCosts[actorName] + modifier["cost"]
+
+                    # randomly increases cost, so that there is a slight variance in glitches used
+                    if glitchAmt > 50:
+                        cost += random.randint(0, int(glitchAmt / 5))
+
+                    # blocks less destructive glitches
+                    if cost < 100 and cost < glitchAmt / 2:
+                        continue
 
                     # reduces the cost significantly for otherwise too-expensive ones
                     if cost > 120: cost = int(cost * .80)
 
                     if cost <= glitchAmt:
                         # name, baseChance, currChance
-                        scrambleTypes.append([name, cost, cost/2.5])
+                        scrambleTypes.append([name, cost, int(cost/2.5)])
 
         # puts the most costly scrambles in the front of the list
         #scrambleTypes.sort(key = lambda s: s[1], reverse = True)
@@ -144,7 +166,7 @@ class Scrambler(object):
 
         endPoint = len(origWords)
         # the replace glitch cannot select the end of the list
-        if glitchSubType == "replace?":
+        if glitchSubType == "replace":
             endPoint -= 1
         insertPoint = random.randint(wordIndex + 1, endPoint)
 
@@ -152,7 +174,7 @@ class Scrambler(object):
             origWords.append(newWord)
         else:
             origWords = origWords[:insertPoint] + [newWord] + \
-                origWords[insertPoint + (glitchSubType == "replace?"):]
+                origWords[insertPoint + (glitchSubType == "replace"):]
 
         return origWords
 
@@ -160,15 +182,15 @@ class Scrambler(object):
     def random_ASCII_character(self, chrRange):
         """returns a random ASCII character based on the given range signifier"""
 
-        if chrRange == "letters!":
+        if chrRange == "letters":
             roll = random.randint(1, 101)
             if roll > 75: rng = (65, 91)
             else: rng = (97, 123)
-        elif chrRange == 'numbers!':
+        elif chrRange == 'numbers':
             rng = (48, 57)
-        elif chrRange == 'normal!':
+        elif chrRange == 'normal':
             rng = (32, 128)
-        elif chrRange == 'extended!':
+        elif chrRange == 'extended':
             rng = (128, 255)
 
         return chr(random.randint(rng[0], rng[1]))
@@ -185,7 +207,6 @@ class Scrambler(object):
             else:
                 text = ""
             return text
-
         # points textList to the given list
         elif textType == list:
             textList = text
@@ -276,10 +297,10 @@ class Scrambler(object):
                 numGlitches += 1
 
                 # delete the current character
-                if glitchHit[1] == "delete!":
+                if glitchHit[1] == "delete":
                     nextSubstring = ""
                 # replace the current character with a space
-                elif glitchHit[1] == "space!":
+                elif glitchHit[1] == "space":
                     nextSubstring = " "
                 # choose a random character from the defined set
                 elif glitchHit[1] == "ascii":
@@ -289,10 +310,10 @@ class Scrambler(object):
                 # it won't bother trying to add a new word if the cap has been reached
                 # and it won't try to replace a word if it won't come up for glitching
                 elif (glitchHit[1] == "bucket"
-                        and not (glitchHit[2] == "add?" and wordsAdded >= self.maxWordsAdded)
-                        and not (glitchHit[2] == "replace?" and wordIndex + 1 == len(origWords)) ):
+                        and not (glitchHit[2] == "add" and wordsAdded >= self.maxWordsAdded)
+                        and not (glitchHit[2] == "replace" and wordIndex + 1 == len(origWords)) ):
                     origWords = self.add_to_origWords(origWords, glitchHit[2], wordIndex, wordSources)
-                    if glitchHit[2] == "add?":
+                    if glitchHit[2] == "add":
                         wordsAdded += 1
 
                 # choose a letter or word from the base text, or a defined list
@@ -308,7 +329,7 @@ class Scrambler(object):
                         if glitchHit[0] == "letter": source = origTextAsString
                         elif glitchHit[0] == "word": source = origWords
                     # choose a possibly-scrambled letter/word
-                    elif glitchHit[2] == "scrambled!":
+                    elif glitchHit[2] == "scrambled":
                         if glitchHit[0] == "letter":
                             roll = random.randint(0, len(scrambledText) - 1)
                             source = scrambledText[roll]
@@ -328,7 +349,7 @@ class Scrambler(object):
                         nextSubstring = letter
 
                 # 10% chance of putting in the original letter before the nextSubstring
-                if random.randint(0, 99) > 90 and glitchHit[1] != "delete!":
+                if random.randint(0, 99) > 90 and glitchHit[1] != "delete":
                     nextSubstring = letter + nextSubstring
 
             # adds the new letter to the most recent word
