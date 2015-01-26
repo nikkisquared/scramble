@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import scramble
 
 demoScrambler = scramble.Scrambler()

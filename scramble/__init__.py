@@ -8,6 +8,10 @@ class Scrambler(object):
 
     def __init__(self):
 
+        # whether or not to re-populate scramble types automatically
+        self.autoResetScrambleTypes = True
+        self.scrambleTypes = []
+
         # the additional costs of each type of actor
         self.actorCosts = {"letter": 0, "word": 100}
 
@@ -105,11 +109,36 @@ class Scrambler(object):
         return origTextAsString, origWords
 
 
-    def get_scramble_types(self, glitchAmt):
-        """generates and returns a list of usable scrambling types"""
+    def add_ascii_words(self, givenList):
+        """adds completely random ascii words to a given list and returns it"""
+
+        for currWord in range(2, 10):
+            newWord = ""
+            for character in range(0, int(currWord / 2) + 1):
+                newWord += chr(random.randint(128, 255))
+            givenList.append(newWord)
+
+        return givenList
+
+
+    def get_glitch_ranges(self, glitchAmt):
+        """calculates the minimum and maximum ranges for glitches occuring, and returns them"""
+
+        # give up on the ranges at this point
+        if glitchAmt >= 900:
+            minRange = maxRange = 0
+        else:
+            minRange = max(14 - int(glitchAmt / 12), 0)
+            maxRange = max(17 - int(glitchAmt / 22), 0)
+
+        return minRange, maxRange
+
+
+    def populate_scramble_types(self, glitchAmt):
+        """populates the list of usable scrambling types"""
 
         # creates a crossover list of actors and sources
-        scrambleTypes = []
+        self.scrambleTypes = []
 
         for source in self.sources:
             for actor in source["actors"]:
@@ -128,16 +157,14 @@ class Scrambler(object):
                     if cost > 120: cost = int(cost * .80)
 
                     if cost <= glitchAmt:
-                        scrambleTypes.append(
+                        self.scrambleTypes.append(
                             {"actor": actor, "source": source["name"],
                             "modifier": modifier["name"],
-                            "baseChance": cost, "currChance": int(cost/2.5)}
+                            "baseChance": cost, "currChance": cost / 2.5}
                         )
 
-        return scrambleTypes
 
-
-    def iterate_scramble_types(self, scrambleTypes, chanceChangeAmt, letterIndex):
+    def iterate_scramble_types(self, scrambleTypes, chanceChangeAmt):
         """
         goes through every type of glitch available and attempts to randomly return one,
         based on their weighted probabilities
@@ -209,18 +236,18 @@ class Scrambler(object):
         return origWords
 
 
-    def random_ASCII_character(self, chrRange):
-        """returns a random ASCII character based on the given range signifier"""
+    def random_ASCII_character(self, modifier):
+        """returns a random ASCII character based on the given modifier"""
 
-        if chrRange == "letters":
+        if modifier == "letters":
             roll = random.randint(1, 101)
             if roll > 75: rng = (65, 91)
             else: rng = (97, 123)
-        elif chrRange == 'numbers':
+        elif modifier == 'numbers':
             rng = (48, 57)
-        elif chrRange == 'normal':
+        elif modifier == 'normal':
             rng = (32, 128)
-        elif chrRange == 'extended':
+        elif modifier == 'extended':
             rng = (128, 255)
 
         return chr(random.randint(rng[0], rng[1]))
@@ -254,20 +281,10 @@ class Scrambler(object):
         localWordList = self.wordList[:]
         # randomly generates some extended ASCII words and adds them to wordList
         if self.randomASCIIWords:
-            for i in range(2, 10):
-                word = ""
-                for j in range(0, int(i/2) + 1):
-                    word += chr(random.randint(128, 255))
-                localWordList.append(word)
+            localWordList = self.add_ascii_words(localWordList)
 
-        # finds the minimum and maximum ranges for glitches occuring on letters
-        if glitchAmt <= 900:
-            minRange = max(14 - (glitchAmt / 12), 0)
-            maxRange = max(17 - int(glitchAmt / 22), 0)
-            #minRange, maxRange = self.glitchRanges(glitchAmt)
-        # give up on the ranges at this point
-        else:
-            minRange = maxRange = 0
+        # range to space out glitches over
+        minRange, maxRange = self.get_glitch_ranges(glitchAmt)
 
         # the amount a glitch's chance increases by every step
         chanceChangeAmt = glitchAmt * 0.025
@@ -276,15 +293,17 @@ class Scrambler(object):
         # if it is below 0, it is treated the same as it being equal to 0
         # starts off at 0, so there is a chance of characters below minRange being hit
         stepsUntilGlitch = 0
-        # critical information for the last glitch to stored, if one has been 
+        # points to the current glitch to run, if any
         glitchHit = None
         # current word from origWords to glitch
         wordIndex = 0
         # the current letter of the current word
         letterIndex = 0
 
-        # list of glitches that can occur
-        scrambleTypes = self.get_scramble_types(glitchAmt)
+        if self.autoResetScrambleTypes or not self.scrambleTypes:
+            self.populate_scramble_types(glitchAmt)
+        # creates a local reference to the list of glitches that can occur
+        scrambleTypes = self.scrambleTypes
         # output of scrambling the inputted text
         scrambledText = []
         # the next word to be put into scrambledText
@@ -304,7 +323,7 @@ class Scrambler(object):
             # by default it is the original letter, but may be replaced by a glitch
             nextSubstring = letter
             # try to load a glitch for use, even if one was saved already
-            glitchHit = self.iterate_scramble_types(scrambleTypes, chanceChangeAmt, letterIndex)
+            glitchHit = self.iterate_scramble_types(scrambleTypes, chanceChangeAmt)
             # if a glitch became ready, it will try to cause it now
             if glitchHit:
                  stepsUntilGlitch -= 1
@@ -343,12 +362,16 @@ class Scrambler(object):
 
                     # choose from a pre-defined list
                     if glitchHit["source"] == "list":
-                        if glitchHit["actor"] == "letter": source = localLetterList
-                        elif glitchHit["actor"] == "word": source = localWordList
+                        if glitchHit["actor"] == "letter":
+                            source = localLetterList
+                        elif glitchHit["actor"] == "word":
+                            source = localWordList
                     # choose from the original text
                     elif glitchHit["modifier"] == "original":
-                        if glitchHit["actor"] == "letter": source = origTextAsString
-                        elif glitchHit["actor"] == "word": source = origWords
+                        if glitchHit["actor"] == "letter":
+                            source = origTextAsString
+                        elif glitchHit["actor"] == "word":
+                            source = origWords
                     # choose a possibly-scrambled letter/word
                     elif glitchHit["modifier"] == "scrambled":
                         if glitchHit["actor"] == "letter" and len(scrambledText) > 0:
@@ -370,7 +393,7 @@ class Scrambler(object):
                         nextSubstring = letter
 
                 # 10% chance of putting in the original letter before the nextSubstring
-                if random.randint(0, 99) > 90 and glitchHit["source"] != "delete":
+                if random.randint(1, 100) > 90 and glitchHit["source"] != "delete":
                     nextSubstring = letter + nextSubstring
 
             # adds the new letter to the most recent word
