@@ -61,19 +61,48 @@ class Scrambler(object):
         self.extendedCharCodes = (146, 153, 164, 168, 178, 186, 216, 222, 236)
 
         # a custom made list of words to randomly insert
-        self.wordList = ["Baboon", "MNO", "cows", "explo", "lode", "boon", "destructive",
-                    "side", "STEP", "hi  ", "blat", "thEE", "burg", "diNGgo", "ding",
-                    "dingette", ",,,", "IT", "you", "YOU", "miss", "RGB", "SCORE",
+        self.wordList = ["MNO", "cows", "explo", "lode", "boon", "side", "STEP",
+                    "hi  ", "blat", "thee", "burg", "dingo", "ding", "dingette",
+                    "", '"', ",", ",,,", "IT", "you", "YOU", "miss", "RGB", "SCORE",
                     "dog", "pet", "__-__", "(8)", "==+==", "this", "scrambleTypes",
                     "+%s" % random.randint(1, 100), "-%s" % random.randint(1, 100),
                     "minRange", "glitchAmt", "wordList", "character '\xe2'",
-                    "ENDLINE","IndexError: string", "index out of range",
+                    "ENDLINE","IndexError: string", "index out of range", 
                     "This is a ", "demonstration", "string", "that", "shall be",
                     "randomly", "glitched", "and destroy", "ed.", "in file",
-                    "game.py on line %s" % random.randint(403, 940), 
+                    "game.py on line %s" % random.randint(403, 940),
                     "but no encoding declared;", "SyntaxError: Non-ASCII"]
         # whether or not to add random ASCII words to wordList later
         self.randomASCIIWords = True
+
+
+    def format_input_text(self, text, textType=None):
+        """formats the input text into a single string and a list of individual words, and returns both"""
+
+        if not textType:
+            textType = type(text)
+        
+        # points textList to the given list
+        if textType == list:
+            textList = text
+        # converts string to a text
+        else:
+            textList = [text]
+
+        # a copy of the original text, as a flattened string
+        origTextAsString = ""
+        # the original text split into individual words, to run glitches on
+        origWords = []
+
+        for chunk in textList:
+            origTextAsString += chunk
+            if chunk.isspace():
+                origWords.append(" ")
+            else:
+                for word in chunk.split(" "):
+                    origWords.append(word)
+
+        return origTextAsString, origWords
 
 
     def get_scramble_types(self, glitchAmt):
@@ -81,13 +110,12 @@ class Scrambler(object):
 
         # creates a crossover list of actors and sources
         scrambleTypes = []
-        for actorName in self.actorCosts.keys():
-            for source in self.sources:
-                if actorName not in source["actors"]:
-                    continue
+
+        for source in self.sources:
+            for actor in source["actors"]:
                 for modifier in source["modifiers"]:
 
-                    cost = self.actorCosts[actorName] + modifier["cost"]
+                    cost = self.actorCosts[actor] + modifier["cost"]
                     # randomly increases cost slightly
                     if glitchAmt > 50:
                         cost += random.randint(0, int(glitchAmt / 5))
@@ -101,13 +129,10 @@ class Scrambler(object):
 
                     if cost <= glitchAmt:
                         scrambleTypes.append(
-                            {"actor": actorName, "source": source["name"],
+                            {"actor": actor, "source": source["name"],
                             "modifier": modifier["name"],
                             "baseChance": cost, "currChance": int(cost/2.5)}
                         )
-
-        # puts the most costly scrambles in the front of the list
-        #scrambleTypes.sort(key = lambda s: s[1], reverse = True)
 
         return scrambleTypes
 
@@ -120,30 +145,37 @@ class Scrambler(object):
 
         glitchHit = None
 
-        # iterate through every action in scrambleTypes
-        for action in scrambleTypes:
-            if not glitchHit:
+        # iterate through every scramble in scrambleTypes
+        for scramble in scrambleTypes:
 
-                # increases the chance of the glitch occuring
-                action["currChance"] -= chanceChangeAmt
+            # increases the chance of the glitch occuring
+            scramble["currChance"] -= chanceChangeAmt
 
-                # if the scramble has not been guaranteed to occur
-                if action["currChance"] > 0:
-                    roll = random.randint(0, action["baseChance"] * 5)
-                    if roll >= action["currChance"] and roll < action["baseChance"]:
-                        action["currChance"] = 0
+            # if the scramble has not been guaranteed to occur
+            if scramble["currChance"] > 0:
+                roll = random.randint(0, scramble["baseChance"] * 5)
+                if roll >= scramble["currChance"] and roll < scramble["baseChance"]:
+                    scramble["currChance"] = 0
 
-                if action["currChance"] <= 0:
-                    # sets currChance back to the baseChance
-                    action["currChance"] = action["baseChance"]
-                    # saves a pointer to the glitch
-                    glitchHit = action
+            if scramble["currChance"] <= 0:
+                # sets currChance back to the baseChance
+                scramble["currChance"] = scramble["baseChance"]
+                # saves a pointer to the glitch
+                glitchHit = scramble
+                break
 
         return glitchHit
 
 
     def get_random_word(self, wordSources):
         """gets a valid word from one of the sources given"""
+
+        possible = False
+        for wordSource in wordSources:
+            if wordSource:
+                possible = True
+        if not possible:
+            return ""
 
         word = ""
         wordSource = []
@@ -156,7 +188,7 @@ class Scrambler(object):
         return word
 
 
-    def add_to_origWords(self, origWords, glitchSubType, wordIndex, wordSources, newWord=None):
+    def add_to_origWords(self, origWords, modifier, wordIndex, wordSources, newWord=None):
         """adds to or replaces a word in origWords"""
 
         if not newWord:
@@ -164,7 +196,7 @@ class Scrambler(object):
 
         endPoint = len(origWords)
         # the replace glitch cannot select the end of the list
-        if glitchSubType == "replace":
+        if modifier == "replace":
             endPoint -= 1
         insertPoint = random.randint(wordIndex + 1, endPoint)
 
@@ -172,7 +204,7 @@ class Scrambler(object):
             origWords.append(newWord)
         else:
             origWords = origWords[:insertPoint] + [newWord] + \
-                origWords[insertPoint + (glitchSubType == "replace"):]
+                origWords[insertPoint + (modifier == "replace"):]
 
         return origWords
 
@@ -198,31 +230,22 @@ class Scrambler(object):
         """scrambles the text based on the glitchiness amount"""
 
         textType = type(text)
-        # there is a rare chance of the entire text being replaced by blank strings
-        if glitchAmt >= 180 and random.randint(0, 50) == 0:
+        # removes empty strings so they don't cause error
+        if textType == list:
+            text = filter(None, text)
+
+        # sends back blank strings if the input text is blank, but also there is  
+        # a rare chance of the entire text being replaced by blank strings
+        if not text or glitchAmt >= 180 and random.randint(0, 50) == 0:
             if textType == list:
                 text = [""] * len(text)
             else:
                 text = ""
             return text
-        # points textList to the given list
-        elif textType == list:
-            textList = text
-        # converts string to a text
-        else:
-            textList = [text]
 
-        # a copy of the original text, as a flattened string
-        origTextAsString = ""
-        # the original text split into individual words, to run glitches on
-        origWords = []
+        origTextAsString, origWords = self.format_input_text(text, textType)
         # how many words have been added to origWords
         wordsAdded = 0
-
-        for chunk in textList:
-            origTextAsString += chunk
-            for word in chunk.split(" "):
-                origWords.append(word)
 
         localLetterList = self.letterList[:]
         for charCode in self.extendedCharCodes:
