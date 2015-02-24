@@ -74,7 +74,7 @@ class Scrambler(object):
                     "ENDLINE","IndexError: string", "index out of range", 
                     "This is a ", "demonstration", "string", "that", "shall be",
                     "randomly", "glitched", "and destroy", "ed.", "in file",
-                    "game.py on line %s" % random.randint(403, 940),
+                    "game.py on line %s" % random.randint(403, 940), "%%s", 
                     "but no encoding declared;", "SyntaxError: Non-ASCII"]
         # whether or not to add random ASCII words to wordList later
         self.randomASCIIWords = True
@@ -261,8 +261,8 @@ class Scrambler(object):
         if textType == list:
             text = filter(None, text)
 
-        # sends back blank strings if the input text is blank, but also there is  
-        # a rare chance of the entire text being replaced by blank strings
+        # sends back blank strings if the input text is blank, but also there is a
+        # rare chance of the entire text being replaced by blank strings
         if not text or glitchAmt >= 180 and random.randint(0, 50) == 0:
             if textType == list:
                 text = [""] * len(text)
@@ -425,8 +425,10 @@ class Scrambler(object):
             chars = 0
             for x in range(len(scrambledText)):
                 chars += len(scrambledText[x]) + 1
-            print "glitch amt: %s, range: %s-%s, chance change: %s, glitched: %s/%s - %s%%, scramble types: %s, words: %s" % \
-                    (glitchAmt, minRange, maxRange, chanceChangeAmt, numGlitches, chars, int( ( (numGlitches * 1.0) / chars ) * 100), 
+            print "glitch amt: %s, range: %s-%s, chance change: %s, " + \
+                    "glitched: %s/%s - %s%%, scramble types: %s, words: %s" % \
+                    (glitchAmt, minRange, maxRange, chanceChangeAmt, numGlitches,
+                        chars, int( ( (numGlitches * 1.0) / chars ) * 100),
                         len(scrambleTypes), len(scrambledText))
-
+                    
         return toReturn
