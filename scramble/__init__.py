@@ -428,7 +428,7 @@ class Scrambler(object):
             print "glitch amt: %s, range: %s-%s, chance change: %s, " + \
                     "glitched: %s/%s - %s%%, scramble types: %s, words: %s" % \
                     (glitchAmt, minRange, maxRange, chanceChangeAmt, numGlitches,
-                        chars, int( ( (numGlitches * 1.0) / chars ) * 100),
+                        chars, int( ((numGlitches * 1.0) / chars) * 100),
                         len(scrambleTypes), len(scrambledText))
                     
         return toReturn
