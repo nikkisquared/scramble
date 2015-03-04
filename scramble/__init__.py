@@ -253,6 +253,35 @@ class Scrambler(object):
         return chr(random.randint(rng[0], rng[1]))
 
 
+    def get_source(self, glitchHit, localLetterList, localWordList, origTextAsString, origWords, scrambledText):
+
+        source = []
+
+        # choose from a pre-defined list
+        if glitchHit["source"] == "list":
+            if glitchHit["actor"] == "letter":
+                source = localLetterList
+            elif glitchHit["actor"] == "word":
+                source = localWordList
+        # choose from the original text
+        elif glitchHit["modifier"] == "original":
+            if glitchHit["actor"] == "letter":
+                source = origTextAsString
+            elif glitchHit["actor"] == "word":
+                source = origWords
+        # choose a possibly-scrambled letter/word
+        elif glitchHit["modifier"] == "scrambled":
+            if glitchHit["actor"] == "letter" and len(scrambledText) > 0:
+                roll = random.randint(0, len(scrambledText) - 1)
+                source = scrambledText[roll]
+            elif glitchHit["actor"] == "word":
+                source = scrambledText
+        else:
+            raise ValueError("glitchHit undefined %r" % glitchHit)
+
+        return source
+
+
     def scramble_text(self, text, glitchAmt, DEBUG=False):
         """scrambles the text based on the glitchiness amount"""
 
@@ -358,27 +387,9 @@ class Scrambler(object):
 
                 # choose a letter or word from the base text, or a defined list
                 elif glitchHit["source"] in ("self", "list"):
-                    source = []
-
-                    # choose from a pre-defined list
-                    if glitchHit["source"] == "list":
-                        if glitchHit["actor"] == "letter":
-                            source = localLetterList
-                        elif glitchHit["actor"] == "word":
-                            source = localWordList
-                    # choose from the original text
-                    elif glitchHit["modifier"] == "original":
-                        if glitchHit["actor"] == "letter":
-                            source = origTextAsString
-                        elif glitchHit["actor"] == "word":
-                            source = origWords
-                    # choose a possibly-scrambled letter/word
-                    elif glitchHit["modifier"] == "scrambled":
-                        if glitchHit["actor"] == "letter" and len(scrambledText) > 0:
-                            roll = random.randint(0, len(scrambledText) - 1)
-                            source = scrambledText[roll]
-                        elif glitchHit["actor"] == "word":
-                            source = scrambledText
+                    
+                    source = self.get_source(glitchHit, localLetterList, localWordList, 
+                                        origTextAsString, origWords, scrambledText)
 
                     # makes sure there is something usable in the source
                     if len(source) > 0:
@@ -425,10 +436,10 @@ class Scrambler(object):
             chars = 0
             for x in range(len(scrambledText)):
                 chars += len(scrambledText[x]) + 1
-            print "glitch amt: %s, range: %s-%s, chance change: %s, " + \
-                    "glitched: %s/%s - %s%%, scramble types: %s, words: %s" % \
+            print ("glitch amt: %s, range: %s-%s, chance change: %s, "
+                    "glitched: %s/%s - %s%%, scramble types: %s, words: %s" %
                     (glitchAmt, minRange, maxRange, chanceChangeAmt, numGlitches,
                         chars, int( ((numGlitches * 1.0) / chars) * 100),
-                        len(scrambleTypes), len(scrambledText))
+                        len(scrambleTypes), len(scrambledText)))
                     
         return toReturn
