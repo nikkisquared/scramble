@@ -1,4 +1,4 @@
-scramble
+Scramble
 ========
 
 Scramble is a library for scrambling streams of text.  
@@ -20,7 +20,10 @@ Scrmble i╔║ a liêay for scrèmminstreams scrmbling õtrea╦░ð o ╦Ò.
 
 Install
 -------
-python setup.py install
+`python setup.py install`
+or
+`pip scramble`
+
 
 API
 ---
